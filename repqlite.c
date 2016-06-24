@@ -54,7 +54,7 @@ struct GlobalVars
   uint32_t FSEvent;             /* inotify event: IN_CLOSE_WRITE by default   */
   unsigned int verbose;         /* Verbose output                             */
   /*
-   ** Sqldiff default options
+   ** Sqldiff options
    */
   int useTransaction;           /* Show SQL output inside a transaction       */
   int neverUseTransaction;
@@ -1847,13 +1847,25 @@ handle_events (int fd, const char *path)
 static void
 _inotify_wait (const char *path)
 {
-  char buf;
-  int fd, poll_num;
-  int wd;
-  nfds_t nfds;
-  struct pollfd fds[2];
+  int fd, poll_num, wd;
+  struct pollfd fds;
+  static int signaled = 0;
+  static int volatile interrupted = 0;
+  struct sigaction sa;
 
-  printf ("Press ENTER key to terminate\n");
+  if (signaled)
+    {
+      interrupted = 1;
+      return;
+    }
+
+  sa.sa_handler = (void (*)(int)) _inotify_wait;
+  sigemptyset (&sa.sa_mask);
+  sa.sa_flags = 0;
+
+  sigaction (SIGINT, &sa, NULL);
+
+  signaled = 1;
 
   /* Create the file descriptor for accessing the inotify API */
   fd = inotify_init1 (IN_NONBLOCK);
@@ -1871,47 +1883,32 @@ _inotify_wait (const char *path)
       exit (EXIT_FAILURE);
     }
 
-  /* Prepare for polling */
-  nfds = 2;
-
-  /* Console input */
-  fds[0].fd = STDIN_FILENO;
-  fds[0].events = POLLIN;
-
   /* Inotify input */
-  fds[1].fd = fd;
-  fds[1].events = POLLIN;
+  fds.fd = fd;
+  fds.events = POLLIN;
 
-  /* Wait for events and/or terminal input */
-  printf ("Listening for events\n");
+  /* Wait for events */
+  VERBOSE ("Listening for events\n");
   while (1)
     {
-      poll_num = poll (fds, nfds, -1);
-      if (poll_num == -1)
+      if (interrupted)
+        break;
+
+      poll_num = poll (&fds, 1, -1);
+
+      if (poll_num == -1 && errno != EINTR)
         {
-          if (errno == EINTR)
-            continue;
           perror ("poll");
           exit (EXIT_FAILURE);
         }
 
       if (poll_num > 0)
         {
-          if (fds[0].revents & POLLIN)
-            {
-              /* Console input is available. Empty stdin and quit */
-              while (read (STDIN_FILENO, &buf, 1) > 0 && buf != '\n')
-                continue;
-              break;
-            }
-
-          if (fds[1].revents & POLLIN)
-            handle_events (fd, path);  /* Inotify events are available */
-
+          if (fds.revents & POLLIN) /* Inotify events are available */
+            handle_events (fd, path);
         }
     }
-
-  printf ("Listening for events stopped\n");
+  VERBOSE ("Listening for events stopped");
 
   /* Close inotify file descriptor */
   close (fd);
@@ -1968,9 +1965,7 @@ main (int argc, char **argv)
               if (strcmp (argv[++i], "modify") == 0)
                 g.FSEvent = IN_MODIFY;
               else if (strcmp (argv[i], "close_write") == 0)
-                {
-                  /* Value is predefined */
-                }
+                { /* Value is predefined */ }
               else
                 cmdlineError ("illegal argument %s", argv[i - 1]);
             }
@@ -2004,16 +1999,12 @@ main (int argc, char **argv)
 #endif
           if (strcmp (z, "primarykey") == 0)
             g.bSchemaPK = 1;
-
           else if (strcmp (z, "rbu") == 0)
             g.rbuTable = 1;
-
           else if (strcmp (z, "transaction") == 0)
             g.useTransaction = 1;
-
           else if (strcmp (z, "verbose") == 0 || strcmp (z, "v") == 0)
             g.verbose = 1;
-
           else
             cmdlineError ("unknown option: %s", argv[i]);
         }
