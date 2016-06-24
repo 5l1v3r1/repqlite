@@ -2,6 +2,7 @@
 
 Replicating SQLite through monitoring filesystem events.
 
+### Usage
 ```
 Usage: ./repqlite [options] PATH
 PATH - The path to the databases directory.
@@ -16,3 +17,10 @@ Options:
                       Default: close_write
    --verbose          Verbose output
 ```
+
+### System requirements
+* Linux kernel >= 2.6.21
+* SQLite >= 3.8.10
+
+### License
+[Public Domain](https://en.wikipedia.org/wiki/Public_domain)
