@@ -53,11 +53,7 @@ struct GlobalVars
   sqlite3 *db;                  /* The database connection                    */
   uint32_t FSEvent;             /* inotify event: IN_CLOSE_WRITE by default   */
   unsigned int verbose;         /* Verbose output                             */
-  /*
-   ** Sqldiff options
-   */
   int useTransaction;           /* Show SQL output inside a transaction       */
-  int neverUseTransaction;
   int nExt;
   char **azExt;                 /* Load an SQLite extension library           */
   int rbuTable;                 /* Output SQL to create/populate RBU table(s) */
@@ -1724,8 +1720,6 @@ sqlDiff (const char *zDb1, const char *zDb2, const char *zLog)
   fprintf (out, "-- %s\n", timestamp ());
   fstart = ftell (out);
 
-  if (g.neverUseTransaction)
-    g.useTransaction = 0;
   if (g.useTransaction)
     fprintf (out, "BEGIN TRANSACTION;\n");
 
@@ -1944,8 +1938,10 @@ main (int argc, char **argv)
   int i;
   const char *dbPath = 0;
 
+  /* Default values */
   g.zArgv0 = argv[0];
   g.FSEvent = IN_CLOSE_WRITE;
+  g.useTransaction = 0;
 
   /* Parse options */
   for (i = 1; i < argc; i++)
