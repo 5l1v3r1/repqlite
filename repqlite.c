@@ -1653,7 +1653,6 @@ cleanup:
 long
 sqlDiff (const char *zDb1, const char *zDb2, const char *zLog)
 {
-  int i;
   int rc;
   long fstart, fend;
   time_t ltime; /* timestamp for SCN-journal */
