@@ -1601,28 +1601,6 @@ local_getline (FILE * in)
 }
 
 /*
-** Return the current time for timestamp in SCN-journal
-*/
-char *
-timestamp ()
-{
-# define TIME_SIZE 40
-  const struct tm *tm;
-  time_t now;
-  char *s;
-
-  now = time (NULL);
-  tm = localtime (&now);
-
-  s = (char *) malloc (TIME_SIZE * sizeof (char));
-
-  strftime (s, TIME_SIZE, "%d %B %Y %I:%M:%S %p", tm);
-
-  return s;
-# undef TIME_SIZE
-}
-
-/*
 ** Patch database
 */
 int
@@ -1678,6 +1656,7 @@ sqlDiff (const char *zDb1, const char *zDb2, const char *zLog)
   int i;
   int rc;
   long fstart, fend;
+  time_t ltime; /* timestamp for SCN-journal */
   char *zErrMsg = 0;
   char *zSql;
   sqlite3_stmt *pStmt;
@@ -1720,7 +1699,8 @@ sqlDiff (const char *zDb1, const char *zDb2, const char *zLog)
     cmdlineError ("\"%s\" does not appear to be a valid SQLite database",
                   zDb2);
 
-  fprintf (out, "-- %s\n", timestamp ());
+  ltime = time (NULL);
+  fprintf (out, "-- %s\n", asctime (localtime (&ltime)));
   fstart = ftell (out);
 
   if (g.useTransaction)
