@@ -1832,7 +1832,6 @@ handle_events (int fd, const char *path)
                     {
                       VERBOSE ("fail\n");
                       fprintf (stderr, "sqlite3_open: %s\n", sqlite3_errstr (rc));
-                      exit;
                     }
                   else
                     {
