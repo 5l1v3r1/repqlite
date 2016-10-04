@@ -1370,7 +1370,7 @@ getRbudiffQuery (const char *zTab,
   strPrintfArray (pSql, " AND ", "(n.%Q IS o.%Q)", azCol, nPK);
   strPrintf (pSql, "\n) ");
 
-  /* Updated rows. If all table columns are part of the primary key, there 
+  /* Updated rows. If all table columns are part of the primary key, there
    ** can be no updates. In this case this part of the compound SELECT can
    ** be omitted altogether. */
   if (azCol[nPK])
@@ -1628,12 +1628,13 @@ timestamp ()
 int
 sqlPatch (const char *dbName, const char *sqlFile, long sqlPos)
 {
-  int rc;
+  int rc, error;
   FILE *fd;
   sqlite3 *db;
   char *line;
   char *zErrMsg;
 
+  error = 0;
   fd = fopen (sqlFile, "r");
   if (!fd)
     perror ("fopen");
@@ -1641,8 +1642,8 @@ sqlPatch (const char *dbName, const char *sqlFile, long sqlPos)
   rc = sqlite3_open (dbName, &db);
   if (rc != SQLITE_OK)
     {
-      fprintf (stderr, "sqlite3_open: %s\n", sqlite3_errstr (rc));
-      return rc;
+      error = 1;
+      goto cleanup;
     }
 
   fseek (fd, sqlPos, SEEK_SET);
@@ -1658,9 +1659,11 @@ sqlPatch (const char *dbName, const char *sqlFile, long sqlPos)
     }
   while (line != NULL);
 
+cleanup:
   fclose (fd);
   sqlite3_close (db);
-  return SQLITE_OK;
+
+  return error ? rc : SQLITE_OK;
 }
 
 
@@ -1824,8 +1827,17 @@ handle_events (int fd, const char *path)
               if (nbytes != -1)
                 {
                   VERBOSE ("* Patch %s ... ", oldfile);
-                  int n = sqlPatch (oldfile, patchfile, nbytes);
-                  VERBOSE (n == SQLITE_OK ? "ok\n" : "fail\n");
+                  int rc = sqlPatch (oldfile, patchfile, nbytes);
+                  if (rc != SQLITE_OK)
+                    {
+                      VERBOSE ("fail\n");
+                      fprintf (stderr, "sqlite3_open: %s\n", sqlite3_errstr (rc));
+                      exit;
+                    }
+                  else
+                    {
+                      VERBOSE ("ok\n");
+                    }
                 }
 
             }
